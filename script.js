@@ -22,12 +22,12 @@
     L: parseFloat(lengthSlider.value),
     g: parseFloat(gravitySlider.value),
     theta0: (INITIAL_ANGLE_DEG * Math.PI) / 180,
-    startTime: performance.now(),
+    startTime: null,
     trail: [],
   };
 
   function resetAnimation() {
-    state.startTime = performance.now();
+    state.startTime = null;
     state.trail = [];
   }
 
@@ -213,14 +213,11 @@
   function updateTrail(now, bobPos) {
     state.trail.push({ t: now, x: bobPos.x, y: bobPos.y });
     const cutoff = now - TRAIL_DURATION_MS;
-    while (state.trail.length > 0 && state.trail[0].t < cutoff) {
-      state.trail.shift();
-    }
+    state.trail = state.trail.filter((pt) => pt.t >= cutoff);
   }
 
   function drawTrail() {
     if (state.trail.length < 2) return;
-    const now = performance.now();
     const pivot = getPivot();
     const centerY = canvas.height - 60;
     const centerX = pivot.x;
@@ -241,14 +238,11 @@
     ctx.setLineDash([]);
 
     ctx.beginPath();
-    const earliest = state.trail[0].t;
-    const oldestValid = now - TRAIL_DURATION_MS;
     for (let i = 0; i < state.trail.length; i++) {
       const pt = state.trail[i];
-      if (pt.t < oldestValid) continue;
       const xNorm = centerX + (pt.x - centerX);
       const y = centerY - (pt.y - pivot.y) * scaleY;
-      if (i === 0 || pt.t === earliest) {
+      if (i === 0) {
         ctx.moveTo(xNorm, y);
       } else {
         ctx.lineTo(xNorm, y);
@@ -287,6 +281,9 @@
 
   function render() {
     const now = performance.now();
+    if (state.startTime === null) {
+      state.startTime = now;
+    }
     const elapsedSec = (now - state.startTime) / 1000;
 
     const { theta, angVel, period } = getPhysics(elapsedSec);
